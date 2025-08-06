@@ -22,7 +22,7 @@ class ClaimCreate(BaseModel):
     type: str
     requested_amount: float
     description: Optional[str] = None
-    user_id: int
+    #user_id: int
 
 class ClaimResponse(BaseModel):
     id: int

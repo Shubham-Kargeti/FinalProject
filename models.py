@@ -23,7 +23,7 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(Enum(UserRole), default=UserRole.user)
 
-    claims = relationship("Claim", back_populates="owner")
+    claims = relationship("Claim", back_populates="owner", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class Claim(Base):
@@ -35,6 +35,6 @@ class Claim(Base):
     approved_amount = Column(Float, nullable=True)  
     description = Column(String, nullable=True)
     status = Column(Enum(ClaimStatus), default=ClaimStatus.pending)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     owner = relationship("User", back_populates="claims")

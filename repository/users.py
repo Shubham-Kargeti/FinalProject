@@ -3,7 +3,7 @@ import schemas
 from database import get_db
 from sqlalchemy.orm import Session
 import models
-from utils.hashing import hash_password
+from authentication.hashing import hash_password
 
 
 def repo_create_user(user: schemas.UserCreate, db: Session):

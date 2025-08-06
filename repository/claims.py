@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 import models
 
 
-def repo_submit_claim(claim: schemas.ClaimCreate, db: Session):
+def repo_submit_claim(claim: schemas.ClaimCreate, db: Session, user_id: int):
     try:
         new_claim = models.Claim(
             type=claim.type,
             requested_amount=claim.requested_amount,
             description=claim.description,
-            user_id=claim.user_id
+            user_id=user_id
         )
         db.add(new_claim)
         db.commit()
@@ -26,6 +26,13 @@ def repo_get_all_claims(db: Session):
         return db.query(models.Claim).all()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
+    
+
+def repo_get_claims_by_user(db: Session, user_id: int):
+    try:
+        return db.query(models.Claim).filter(models.Claim.user_id == user_id).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def repo_get_claim_by_id(claim_id: int, db: Session):
@@ -38,11 +45,14 @@ def repo_get_claim_by_id(claim_id: int, db: Session):
         raise HTTPException(status_code=500, detail=str(e))
     
 
-def repo_update_claim(claim_id: int, updated_claim: schemas.ClaimCreate, db: Session):
+def repo_update_claim(claim_id: int, updated_claim: schemas.ClaimCreate, db: Session, current_user: models.User):
     try:
         claim = db.query(models.Claim).filter(models.Claim.id == claim_id).first()
         if not claim:
             raise HTTPException(status_code=404, detail="Claim not found")
+        
+        if current_user.role != "admin" and claim.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to update this claim")
         
         claim.type = updated_claim.type
         claim.requested_amount = updated_claim.requested_amount
@@ -55,11 +65,14 @@ def repo_update_claim(claim_id: int, updated_claim: schemas.ClaimCreate, db: Ses
         raise HTTPException(status_code=500, detail=str(e))
     
 
-def repo_delete_claim(claim_id: int, db: Session):
+def repo_delete_claim(claim_id: int, db: Session, current_user: models.User):
     try:
         claim = db.query(models.Claim).filter(models.Claim.id == claim_id).first()
         if not claim:
             raise HTTPException(status_code=404, detail="Claim not found")
+        
+        if current_user.role != "admin" and claim.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to update this claim")
         
         db.delete(claim)
         db.commit()
