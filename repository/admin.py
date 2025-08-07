@@ -1,20 +1,28 @@
 import models
-from fastapi import HTTPException, Depends
 import schemas
-from sqlalchemy.orm import Session
-from database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from fastapi import HTTPException
+from utils.cache import clear_cache 
 
-def repo_admin_update_claim(claim_id: int, admin_update: schemas.AdminClaimUpdate, db: Session):
+async def repo_admin_update_claim(claim_id: int, admin_update: schemas.AdminClaimUpdate, db: AsyncSession):
     try:
-        claim = db.query(models.Claim).filter(models.Claim.id == claim_id).first()
+        result = await db.execute(select(models.Claim).where(models.Claim.id == claim_id))
+        claim = result.scalar_one_or_none()
+
         if not claim:
             raise HTTPException(status_code=404, detail="Claim not found")
         
         claim.status = admin_update.status
         claim.approved_amount = admin_update.approved_amount
 
-        db.commit()
-        db.refresh(claim)
+        await db.commit()
+        await db.refresh(claim)
+
+        clear_cache("all_claims")
+        clear_cache(f"user_claims_{claim.user_id}")
+
         return claim
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

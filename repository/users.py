@@ -1,68 +1,89 @@
 from fastapi import HTTPException, Depends, Response, status
 import schemas
-from database import get_db
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 import models
-from authentication.hashing import hash_password
+from utils.hashing import hash_password
+from utils.cache import get_cache, set_cache, clear_cache
 
-
-def repo_create_user(user: schemas.UserCreate, db: Session):
+async def repo_create_user(user: schemas.UserCreate, db: AsyncSession):
     try:
-        user_data= user.model_dump()
+        user_data = user.model_dump()
         user_data["password"] = hash_password(user.password)
-        print("hashed paswword = ", user_data["password"])
-
         new_user = models.User(**user_data)
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+        clear_cache("all_users")  # Invalidate user cache
         return new_user
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    
 
-def repo_get_all_users(db: Session = Depends(get_db)):
+
+async def repo_get_all_users(db: AsyncSession):
+    cache_key = "all_users"
+    cached_users = get_cache(cache_key)
+
+    if cached_users is not None:
+        return cached_users
+
     try:
-        return db.query(models.User).all()
+        result = await db.execute(select(models.User))
+        users = result.scalars().all()
+        set_cache(cache_key, users, ttl=60)  # Cache for 60 seconds
+        return users
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
 
-def repo_get_user_by_id(user_id: int, db: Session):
+
+async def repo_get_user_by_id(user_id: int, db: AsyncSession):
     try:
-        user = db.query(models.User).filter(models.User.id == user_id).first()
+        result = await db.execute(select(models.User).where(models.User.id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return user
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
 
-def repo_update_user(user_id: int, updated_user: schemas.UserCreate, db: Session):
+
+async def repo_update_user(user_id: int, updated_user: schemas.UserCreate, db: AsyncSession):
     try:
-        user = db.query(models.User).filter(models.User.id == user_id).first()
+        result = await db.execute(select(models.User).where(models.User.id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         user.username = updated_user.username
         user.email = updated_user.email
-        user.password = updated_user.password 
+        user.password = updated_user.password
 
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
+        clear_cache("all_users")
         return user
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    
 
-def repo_delete_user(user_id: int, db: Session):
+
+async def repo_delete_user(user_id: int, db: AsyncSession):
     try:
-        user = db.query(models.User).filter(models.User.id == user_id).first()
+        result = await db.execute(select(models.User).where(models.User.id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+
+        await db.delete(user)
+        await db.commit()
+
         
-        db.delete(user)
-        db.commit()
+        clear_cache("all_users")
+        #even if user is deleted the claims still be showing without this line due to cache
+        clear_cache(f"user_claims_{user_id}")
+
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

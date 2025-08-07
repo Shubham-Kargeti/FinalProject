@@ -3,7 +3,7 @@ from authentication.oauth2 import get_current_user
 import models
 
 def require_role(required_role: str):
-    def role_checker(current_user: models.User = Depends(get_current_user)):
+    async def role_checker(current_user: models.User = Depends(get_current_user)):
         if current_user.role != required_role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

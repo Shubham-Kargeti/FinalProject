@@ -8,3 +8,5 @@ python-jose[cryptography]
 python-multipart
 asyncpg
 sqlalchemy[asyncio]
+fastapi-cache2 
+redis
