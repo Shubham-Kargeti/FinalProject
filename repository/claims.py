@@ -114,19 +114,11 @@ async def repo_delete_claim(claim_id: int, db: AsyncSession, current_user: model
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def repo_get_claims_by_user_id(user_id: int, db: AsyncSession):
-    cache_key = f"user_claims_{user_id}"
-    cached = get_cache(cache_key)
 
-    if cached is not None:
-        return cached
-
-    try:
-        result = await db.execute(select(models.Claim).where(models.Claim.user_id == user_id))
-        claims = result.scalars().all()
-        if not claims:
-            raise HTTPException(status_code=404, detail=f"No claims found for user ID {user_id}")
-        set_cache(cache_key, claims, ttl=60)
-        return claims
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def repo_get_claims_by_user(db: AsyncSession, user_id: int):
+    result = await db.execute(
+        select(models.Claim)
+        .where(models.Claim.user_id == user_id)
+        .order_by(models.Claim.id.desc()) 
+    )
+    return result.scalars().all()

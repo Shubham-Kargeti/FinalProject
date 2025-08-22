@@ -9,7 +9,7 @@ import models
 
 router = APIRouter()
 
-@router.post("/claims", response_model=schemas.ClaimResponse, status_code=status.HTTP_201_CREATED, tags=["Claims"])
+@router.post("/claims", response_model=schemas.ClaimResponse, status_code=status.HTTP_201_CREATED, tags=["Normal User"])
 async def submit_claim(
     claim: schemas.ClaimCreate,
     db: AsyncSession = Depends(get_db),
@@ -17,7 +17,7 @@ async def submit_claim(
 ):
     return await claims.repo_submit_claim(claim, db, current_user.id)
 
-@router.get("/claims", response_model=list[schemas.ClaimResponse], tags=["Claims"])
+@router.get("/claims", response_model=list[schemas.ClaimResponse], tags=["All Users"])
 async def get_all_claims(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -27,7 +27,7 @@ async def get_all_claims(
     else:
         return await claims.repo_get_claims_by_user(db, current_user.id)
 
-@router.get("/claims/{claim_id}", response_model=schemas.ClaimResponse, tags=["Claims"])
+@router.get("/claims/{claim_id}", response_model=schemas.ClaimResponse, tags=["All Users"])
 async def get_claim_by_id(
     claim_id: int,
     db: AsyncSession = Depends(get_db),
@@ -41,7 +41,7 @@ async def get_claim_by_id(
         )
     return claim
 
-@router.put("/claims/{claim_id}", response_model=schemas.ClaimResponse, tags=["Claims"])
+@router.put("/claims/{claim_id}", response_model=schemas.ClaimResponse, tags=["All Users"])
 async def update_claim(
     claim_id: int,
     updated_claim: schemas.ClaimCreate,
@@ -50,7 +50,7 @@ async def update_claim(
 ):
     return await claims.repo_update_claim(claim_id, updated_claim, db, current_user)
 
-@router.delete("/claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Claims"])
+@router.delete("/claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["All Users"])
 async def delete_claim(
     claim_id: int,
     db: AsyncSession = Depends(get_db),
@@ -58,10 +58,4 @@ async def delete_claim(
 ):
     return await claims.repo_delete_claim(claim_id, db, current_user)
 
-@router.get("/users/{user_id}/claims", response_model=list[schemas.ClaimResponse], tags=["Claims"])
-async def get_claims_by_user_id(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_admin=Depends(require_role("admin"))
-):
-    return await claims.repo_get_claims_by_user_id(user_id, db)
+

@@ -3,7 +3,7 @@ import time
 # Cache storage: { key: (value, expire_time) }
 cache = {}
 
-def set_cache(key: str, value: any, ttl: int = 60):
+def set_cache(key: str, value: any, ttl: int = 300):
     expire_time = time.time() + ttl
     cache[key] = (value, expire_time)
 
